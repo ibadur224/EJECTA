@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>EJECTA | Deep Space Radiation Observatory</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            background-color: black;
+            color: #eef5ff;
+        }
+
+        canvas {
+            display: block;
+            vertical-align: bottom;
+        }
+
+        /* Top navigation bar */
+        .top-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(5, 10, 25, 0.65);
+            backdrop-filter: blur(12px);
+            border-radius: 60px;
+            padding: 8px 24px;
+            border: 1px solid rgba(150, 150, 180, 0.3);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .mission-btn {
+            background: rgba(20, 20, 35, 0.8);
+            border: 1px solid rgba(180, 180, 200, 0.4);
+            color: #e0e0e8;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 8px 18px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-family: inherit;
+            letter-spacing: 0.5px;
+        }
+
+        .mission-btn:hover {
+            background: #2a2a3a;
+            border-color: #ffffff;
+            color: white;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+        }
+
+        .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 6px 18px;
+            border-radius: 60px;
+            border-left: 2px solid #ffffff;
+            font-weight: 500;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 6px #ffffff;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.4; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1.2); background-color: #cccccc; }
+        }
+
+        /* Compact telemetry panel - moved to top-right, smaller footprint */
+        .telemetry-panel {
+            position: fixed;
+            top: 90px;
+            right: 24px;
+            width: 320px;
+            background: rgba(8, 8, 18, 0.85);
+            backdrop-filter: blur(18px);
+            border-radius: 28px;
+            border: 1px solid rgba(150, 150, 170, 0.4);
+            padding: 16px 18px 20px 18px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            z-index: 90;
+            transition: all 0.2s;
+        }
+
+        .panel-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 14px;
+            letter-spacing: 1px;
+            border-left: 3px solid #ffffff;
+            padding-left: 10px;
+            color: #ffffff;
+        }
+
+        .metrics-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .metric {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.45);
+            border-radius: 18px;
+            padding: 6px 8px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(150, 150, 170, 0.25);
+        }
+
+        .metric-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #aaaaaa;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Inter', monospace;
+            color: white;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+            line-height: 1.2;
+        }
+
+        .unit {
+            font-size: 0.7rem;
+            font-weight: 400;
+            color: #aaaaaa;
+        }
+
+        .risk-section {
+            margin: 8px 0 8px 0;
+        }
+
+        .risk-bar-container {
+            background: #111118;
+            border-radius: 12px;
+            height: 8px;
+            width: 100%;
+            margin: 6px 0 6px;
+            overflow: hidden;
+        }
+
+        .risk-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #aaaaaa, #ffffff, #ff9f4a);
+            border-radius: 12px;
+        }
+
+        .alert-status {
+            font-size: 0.7rem;
+            font-weight: 700;
+            margin-top: 4px;
+            display: inline-block;
+            background: #1a1a2a;
+            padding: 3px 12px;
+            border-radius: 30px;
+            letter-spacing: 0.5px;
+        }
+
+        .divider {
+            height: 1px;
+            background: rgba(150, 150, 170, 0.3);
+            margin: 12px 0 12px;
+        }
+
+        /* FULL-WIDTH CHART CONTAINER at bottom */
+        .global-chart-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 32%;
+            min-height: 210px;
+            background: rgba(2, 4, 12, 0.8);
+            backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(150, 150, 170, 0.4);
+            z-index: 85;
+            padding: 12px 24px 16px 24px;
+            box-shadow: 0 -8px 30px rgba(0,0,0,0.6);
+            transition: all 0.2s ease;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 10px;
+            padding: 0 8px;
+        }
+
+        .chart-header h4 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: #ccccdd;
+            text-transform: uppercase;
+            background: rgba(0,0,0,0.4);
+            padding: 4px 14px;
+            border-radius: 30px;
+            display: inline-block;
+        }
+
+        .live-tag {
+            font-size: 0.7rem;
+            color: #ffffff;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 12px;
+            border-radius: 30px;
+            font-family: monospace;
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            height: calc(100% - 40px);
+            position: relative;
+        }
+
+        canvas#trendChart {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 20px;
+            padding: 4px;
+        }
+
+        .small-note {
+            font-size: 0.6rem;
+            text-align: right;
+            margin-top: 6px;
+            color: #777788;
+            letter-spacing: 0.3px;
+            padding-right: 10px;
+        }
+
+        @media (max-width: 750px) {
+            .telemetry-panel { width: 280px; right: 12px; top: 80px; padding: 12px; }
+            .metric-value { font-size: 1.2rem; }
+            .global-chart-area { height: 28%; min-height: 180px; padding: 8px 16px; }
+            .chart-header h4 { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Music -->
+    <audio id="bg-music" loop>
+        <source src="../assets/m.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="top-nav">
+        <a href="../index.html" class="mission-btn" id="missionControlBtn">← MISSION CONTROL</a>
+        <div class="live-badge">
+            <div class="pulse-dot"></div>
+            <span>LIVE TELEMETRY • DEEP SPACE</span>
+        </div>
+    </div>
+
+    <!-- Compact telemetry panel stays top-right -->
+    <div class="telemetry-panel" id="telemetryPanel">
+        <div class="panel-title">⚡ RADIATION DASHBOARD</div>
+        <div class="metrics-grid">
+            <div class="metric">
+                <div class="metric-label">COSMIC RAYS</div>
+                <div class="metric-value"><span id="cosmicVal">0.00</span><span class="unit">μSv/h</span></div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">SOLAR PARTICLES</div>
+                <div class="metric-value"><span id="solarVal">0.00</span><span class="unit">μSv/h</span></div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">TOTAL DOSE</div>
+                <div class="metric-value"><span id="totalVal">0.00</span><span class="unit">μSv/h</span></div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Kp INDEX</div>
+                <div class="metric-value"><span id="kpVal">--</span></div>
+            </div>
+        </div>
+        <div class="risk-section">
+            <div class="risk-bar-container">
+                <div class="risk-fill" id="riskFill"></div>
+            </div>
+            <div class="alert-status" id="alertStatus">NOMINAL</div>
+        </div>
+        <div class="divider"></div>
+        <div class="small-note" style="margin-top: 0; text-align: center;">Data: NOAA SWPC • Kp & flares</div>
+    </div>
+
+    <!-- FULL BOTTOM CHART AREA -->
+    <div class="global-chart-area">
+        <div class="chart-header">
+            <h4>📡 24H RADIATION TREND &nbsp;|&nbsp; μSv/h</h4>
+            <div class="live-tag">● REAL-TIME UPDATE</div>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="trendChart" width="1200" height="260"></canvas>
+        </div>
+        <div class="small-note">Historical trend (sliding 24h window) • cosmic + solar ionizing flux</div>
+    </div>
+
+    <script>
+        // ========== GLOBAL VOLUME LOGIC (from index.html) ==========
+        const bgMusic = document.getElementById('bg-music');
+        
+        // Check saved preference
+        const isMuted = localStorage.getItem('ejecta_muted') === 'true';
+        bgMusic.muted = isMuted;
+        bgMusic.volume = 0.6;
+
+        // Auto-play if not muted (browser policies may still block this without interaction)
+        if (!isMuted) {
+            bgMusic.play().catch(() => {}); 
+        }
+        // ========== END VOLUME LOGIC ==========
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ---------- THREE.JS SETUP ----------
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x010114);
+        scene.fog = new THREE.FogExp2(0x010114, 0.0003);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(0, 0.2, 4.5);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.75;
+        controls.enableZoom = true;
+        controls.enablePan = false;
+        controls.zoomSpeed = 0.9;
+        controls.target.set(0, 0, 0);
+        
+        // ---------- EARTH (photorealistic) ----------
+        const earthGeometry = new THREE.SphereGeometry(1.0, 128, 128);
+        const textureLoader = new THREE.TextureLoader();
+        const earthMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+        const earthSpecularMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg');
+        const earthNormalMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg');
+        const cloudMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_clouds_1024.png');
+        
+        const earthMaterial = new THREE.MeshPhongMaterial({
+            map: earthMap,
+            specularMap: earthSpecularMap,
+            specular: new THREE.Color('grey'),
+            shininess: 5,
+            normalMap: earthNormalMap,
+            normalScale: new THREE.Vector2(0.8, 0.8)
+        });
+        const earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earthMesh);
+        
+        const cloudGeometry = new THREE.SphereGeometry(1.01, 128, 128);
+        const cloudMaterial = new THREE.MeshPhongMaterial({
+            map: cloudMap,
+            transparent: true,
+            opacity: 0.12,
+            blending: THREE.AdditiveBlending
+        });
+        const cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+        scene.add(cloudMesh);
+        
+        // ========== RADIATION BELTS - White/Silver tones ==========
+        // Inner Belt: tighter, white emission
+        const innerRingGeo = new THREE.TorusGeometry(1.38, 0.048, 128, 400);
+        const innerRingMat = new THREE.MeshStandardMaterial({
+            color: 0xe8e8ff,
+            emissive: 0x444455,
+            emissiveIntensity: 0.45,
+            transparent: true,
+            opacity: 0.6,
+            side: THREE.DoubleSide
+        });
+        const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
+        innerRing.rotation.x = Math.PI / 2.2;
+        innerRing.rotation.z = 0.3;
+        scene.add(innerRing);
+        
+        // Outer Belt: wider, silver-white
+        const outerRingGeo = new THREE.TorusGeometry(1.98, 0.07, 128, 520);
+        const outerRingMat = new THREE.MeshStandardMaterial({
+            color: 0xd0d0e8,
+            emissive: 0x333344,
+            emissiveIntensity: 0.4,
+            transparent: true,
+            opacity: 0.55,
+            side: THREE.DoubleSide
+        });
+        const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
+        outerRing.rotation.x = Math.PI / 2.1;
+        outerRing.rotation.z = -0.25;
+        scene.add(outerRing);
+        
+        // Starfield (deep space)
+        const starCount = 3200;
+        const starGeometry = new THREE.BufferGeometry();
+        const starPositions = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i++) {
+            const radius = 28 + Math.random() * 140;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            starPositions[i*3] = radius * Math.sin(phi) * Math.cos(theta);
+            starPositions[i*3+1] = radius * Math.sin(phi) * Math.sin(theta);
+            starPositions[i*3+2] = radius * Math.cos(phi);
+        }
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.11, transparent: true, opacity: 0.7 });
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+        
+        // Trapped energetic particles (dust)
+        const dustCount = 5200;
+        const dustGeo = new THREE.BufferGeometry();
+        const dustPositions = new Float32Array(dustCount * 3);
+        for (let i = 0; i < dustCount; i++) {
+            const r = 1.28 + Math.random() * 1.35;
+            const angle = Math.random() * Math.PI * 2;
+            const yOffset = (Math.random() - 0.5) * 0.6;
+            const x = Math.cos(angle) * r;
+            const z = Math.sin(angle) * r;
+            dustPositions[i*3] = x;
+            dustPositions[i*3+1] = yOffset;
+            dustPositions[i*3+2] = z;
+        }
+        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+        const dustMat = new THREE.PointsMaterial({ color: 0xaaaaff, size: 0.009, transparent: true, opacity: 0.5 });
+        const dustParticles = new THREE.Points(dustGeo, dustMat);
+        scene.add(dustParticles);
+        
+        // Lighting - neutral/dark tones
+        const ambientLight = new THREE.AmbientLight(0x111122);
+        scene.add(ambientLight);
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        mainLight.position.set(5, 3, 5);
+        scene.add(mainLight);
+        const fillLight = new THREE.PointLight(0x555566, 0.45);
+        fillLight.position.set(1, 2, 3);
+        scene.add(fillLight);
+        const backLight = new THREE.PointLight(0x888899, 0.35);
+        backLight.position.set(-2, 1, -4);
+        scene.add(backLight);
+        
+        // Solar flare FX - white/red tones
+        let flareActive = false;
+        let flareTimer = 0;
+        const flareParticleCount = 1200;
+        const flareGeo = new THREE.BufferGeometry();
+        const flarePositionsInit = new Float32Array(flareParticleCount * 3);
+        for (let i = 0; i < flareParticleCount; i++) {
+            flarePositionsInit[i*3] = (Math.random() - 0.5) * 4.5;
+            flarePositionsInit[i*3+1] = (Math.random() - 0.5) * 3.8;
+            flarePositionsInit[i*3+2] = (Math.random() - 0.5) * 4.5;
+        }
+        flareGeo.setAttribute('position', new THREE.BufferAttribute(flarePositionsInit.slice(), 3));
+        const flareMat = new THREE.PointsMaterial({ color: 0xffaa88, size: 0.024, transparent: true, blending: THREE.AdditiveBlending });
+        const flarePoints = new THREE.Points(flareGeo, flareMat);
+        flarePoints.visible = false;
+        scene.add(flarePoints);
+        
+        let time = 0;
+        
+        // ---------- LIVE TELEMETRY & DATA MODELS ----------
+        let currentKp = 2.3;
+        let currentXrayClass = 'B';
+        let currentXrayFlux = 0.000001;
+        let cosmicRayValue = 0.22;
+        let solarParticleValue = 0.09;
+        
+        // Historical arrays
+        let historicalTotal = new Array(24).fill(0.28);
+        let historicalCosmic = new Array(24).fill(0.20);
+        
+        // Chart.js instance - white/grey theme
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        let trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 24}, (_,i) => `${-23+i}h`),
+                datasets: [
+                    {
+                        label: 'Total Ionizing Dose (μSv/h)',
+                        data: historicalTotal,
+                        borderColor: '#ffffff',
+                        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                        borderWidth: 2.8,
+                        tension: 0.3,
+                        pointRadius: 2.2,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#333333',
+                        fill: true
+                    },
+                    {
+                        label: 'Cosmic Background',
+                        data: historicalCosmic,
+                        borderColor: '#888888',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2.2,
+                        borderDash: [7, 5],
+                        tension: 0.2,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { labels: { color: '#ccccdd', font: { size: 11, weight: '500' }, boxWidth: 12 }, position: 'top' },
+                    tooltip: { mode: 'index', intersect: false, backgroundColor: '#1a1a2a', titleColor: '#ffffff', bodyColor: '#cccccc' }
+                },
+                scales: {
+                    x: { ticks: { color: '#9999aa', maxRotation: 30, font: { size: 9 } }, grid: { color: 'rgba(100,100,120,0.2)' }, title: { display: true, text: 'Time (hours ago)', color: '#888899', font: { size: 9 } } },
+                    y: { ticks: { color: '#9999aa', stepSize: 0.15, precision: 2 }, grid: { color: 'rgba(100,100,120,0.2)' }, title: { display: true, text: 'Radiation (μSv/h)', color: '#888899', font: { size: 10 } }, min: 0.05 }
+                },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
+            }
+        });
+        
+        function computeCosmicFromKp(kp) {
+            const kpClamped = Math.min(9, Math.max(0, kp));
+            return 0.14 + (kpClamped / 9) * 0.54;
+        }
+        
+        function computeSolarFromXray(fluxClass, fluxValWm2) {
+            const map = { 'A': 0.07, 'B': 0.15, 'C': 0.32, 'M': 0.58, 'X': 0.78 };
+            let base = map[fluxClass] || 0.15;
+            if (fluxClass === 'X') base += Math.min(0.12, fluxValWm2 * 50);
+            return Math.min(0.89, base);
+        }
+        
+        async function fetchSpaceWeather() {
+            try {
+                const kpResponse = await fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1.json');
+                if (kpResponse.ok) {
+                    const kpData = await kpResponse.json();
+                    if (kpData && kpData.length) {
+                        const recent = kpData[kpData.length-1];
+                        if (recent.kp_index !== undefined) currentKp = recent.kp_index;
+                    }
+                } else throw new Error('Kp fetch failed');
+                
+                const xrayResponse = await fetch('https://services.swpc.noaa.gov/json/goes/primary/xray-flares-latest.json');
+                if (xrayResponse.ok) {
+                    const xrayData = await xrayResponse.json();
+                    if (xrayData && xrayData.length) {
+                        const latestEvent = xrayData[0];
+                        let classStr = latestEvent.class_type ? latestEvent.class_type.charAt(0) : 'B';
+                        if (!['A','B','C','M','X'].includes(classStr)) classStr = 'B';
+                        currentXrayClass = classStr;
+                        currentXrayFlux = latestEvent.flux || 0.000001;
+                    }
+                } else throw new Error('Xray fetch failed');
+            } catch (err) {
+                console.warn("API fallback: geomagnetic variation model", err);
+                const driftKp = (Math.random() - 0.5) * 1.0;
+                currentKp = Math.min(9, Math.max(0.2, currentKp + driftKp));
+                if (Math.random() < 0.18) {
+                    const classes = ['A','B','C','M','X'];
+                    currentXrayClass = classes[Math.floor(Math.random() * classes.length)];
+                }
+            }
+            
+            cosmicRayValue = computeCosmicFromKp(currentKp);
+            solarParticleValue = computeSolarFromXray(currentXrayClass, currentXrayFlux);
+            cosmicRayValue += (Math.random() - 0.5) * 0.016;
+            solarParticleValue += (Math.random() - 0.5) * 0.016;
+            cosmicRayValue = Math.min(0.79, Math.max(0.11, cosmicRayValue));
+            solarParticleValue = Math.min(0.87, Math.max(0.05, solarParticleValue));
+            
+            const totalDose = cosmicRayValue + solarParticleValue;
+            
+            document.getElementById('cosmicVal').innerText = cosmicRayValue.toFixed(3);
+            document.getElementById('solarVal').innerText = solarParticleValue.toFixed(3);
+            document.getElementById('totalVal').innerText = totalDose.toFixed(3);
+            document.getElementById('kpVal').innerHTML = currentKp.toFixed(1);
+            
+            let riskPercent = (totalDose / 1.28) * 100;
+            riskPercent = Math.min(100, Math.max(0, riskPercent));
+            document.getElementById('riskFill').style.width = `${riskPercent}%`;
+            let alertText = "NOMINAL";
+            if (totalDose > 0.92) alertText = "CRITICAL";
+            else if (totalDose > 0.62) alertText = "ELEVATED";
+            document.getElementById('alertStatus').innerText = alertText;
+            if (alertText === "CRITICAL") document.getElementById('alertStatus').style.background = "#8a2a2a";
+            else if (alertText === "ELEVATED") document.getElementById('alertStatus').style.background = "#8a5a2a";
+            else document.getElementById('alertStatus').style.background = "#1a1a2a";
+            
+            if (solarParticleValue > 0.58 && !flareActive) {
+                triggerSolarFlare();
+            }
+            
+            return { cosmic: cosmicRayValue, solar: solarParticleValue, total: totalDose, kp: currentKp };
+        }
+        
+        function triggerSolarFlare() {
+            flareActive = true;
+            flareTimer = 2.4;
+            flarePoints.visible = true;
+            const positions = flarePoints.geometry.attributes.position.array;
+            for (let i = 0; i < flareParticleCount; i++) {
+                const radius = 1.3 + Math.random() * 2.5;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                positions[i*3] = radius * Math.sin(phi) * Math.cos(theta);
+                positions[i*3+1] = radius * Math.sin(phi) * Math.sin(theta) * 0.7;
+                positions[i*3+2] = radius * Math.cos(phi);
+            }
+            flarePoints.geometry.attributes.position.needsUpdate = true;
+        }
+        
+        let lastChartUpdate = 0;
+        function updateChartData(currentTotal, currentCosmic) {
+            const now = Date.now();
+            if (now - lastChartUpdate >= 300000) {
+                historicalTotal.push(currentTotal);
+                historicalCosmic.push(currentCosmic);
+                if (historicalTotal.length > 24) historicalTotal.shift();
+                if (historicalCosmic.length > 24) historicalCosmic.shift();
+                trendChart.data.datasets[0].data = [...historicalTotal];
+                trendChart.data.datasets[1].data = [...historicalCosmic];
+                trendChart.update('none');
+                lastChartUpdate = now;
+            }
+        }
+        
+        async function updateTelemetry() {
+            const data = await fetchSpaceWeather();
+            updateChartData(data.total, data.cosmic);
+        }
+        
+        updateTelemetry();
+        setInterval(updateTelemetry, 30000);
+        
+        // Seed realistic initial chart values
+        for (let i = 0; i < 24; i++) {
+            historicalTotal[i] = 0.22 + Math.random() * 0.12;
+            historicalCosmic[i] = 0.18 + Math.random() * 0.09;
+        }
+        historicalTotal[20] = 0.51;
+        historicalTotal[21] = 0.48;
+        historicalCosmic[20] = 0.31;
+        trendChart.update();
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            const deltaTime = 1/60;
+            time += 0.009;
+            
+            innerRing.rotation.z += 0.0023;
+            outerRing.rotation.z -= 0.0020;
+            innerRing.rotation.y += 0.0008;
+            outerRing.rotation.y -= 0.0005;
+            cloudMesh.rotation.y += 0.0008;
+            
+            dustParticles.rotation.y += 0.0012;
+            dustParticles.rotation.x = Math.sin(time * 0.3) * 0.04;
+            
+            if (flareActive) {
+                flareTimer -= deltaTime;
+                if (flareTimer <= 0) {
+                    flareActive = false;
+                    flarePoints.visible = false;
+                } else {
+                    const intensity = Math.min(1.1, flareTimer * 1.2);
+                    flareMat.color.setHex(0xffaa88);
+                    flareMat.size = 0.028 * (0.6 + intensity * 0.7);
+                }
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        console.log('EJECTA Observatory | Radiation Belts | White/Black Theme');
+    </script>
+</body>
+</html>

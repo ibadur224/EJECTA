@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>EJECTA AI • DEEP SPACE</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', 'Inter', 'SF Mono', system-ui, -apple-system, monospace;
+            background: #03050a;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            position: fixed;
+            top: 0; left: 0;
+        }
+
+        /* 🌟 COSMIC GLOBE - PURE VISIBILITY */
+        #globeCanvas {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 1;
+        }
+
+        /* Minimal overlay */
+        .background-overlay {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(ellipse at center, 
+                rgba(3,5,10,0.02) 0%, 
+                rgba(3,5,10,0.1) 50%, 
+                rgba(3,5,10,0.25) 100%);
+            z-index: 1; pointer-events: none;
+        }
+
+        /* 🔍 SHARP STARFIELD */
+        .starfield {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; z-index: 2; opacity: 0.4;
+        }
+        .star {
+            position: absolute; background: #ffffff; border-radius: 50%; opacity: 0.8;
+            animation: twinkle 3s infinite alternate;
+        }
+        @keyframes twinkle { 0% { opacity: 0.2; transform: scale(0.8); } 100% { opacity: 0.9; transform: scale(1.0); } }
+
+        /* Shooting stars */
+        .shooting-star {
+            position: absolute; width: 3px; height: 3px; background: #ffffff; opacity: 0;
+            pointer-events: none; z-index: 2; border-radius: 50%;
+        }
+        @keyframes shoot { 0% { transform: translateX(0) translateY(0); opacity: 1; box-shadow: 0 0 4px #fff; } 100% { transform: translateX(-400px) translateY(100px); opacity: 0; box-shadow: 0 0 0 transparent; } }
+
+        /* Subtle Nebula */
+        .nebula {
+            position: fixed; border-radius: 50%; filter: blur(120px); opacity: 0.02; pointer-events: none; z-index: 0;
+        }
+        .nebula-1 { width: 1000px; height: 1000px; background: radial-gradient(circle, #1a3a6a 0%, transparent 80%); top: -300px; right: -200px; }
+        .nebula-2 { width: 1000px; height: 1000px; background: radial-gradient(circle, #4a2a4a 0%, transparent 80%); bottom: -300px; left: -200px; }
+        .nebula-3 { width: 700px; height: 700px; background: radial-gradient(circle, #1a2a4a 0%, transparent 80%); top: 40%; left: 20%; }
+
+        /* 🔲 TRANSPARENT CHAT CONTAINER - FULLSCREEN IMMERSIVE */
+        .chat-container {
+            position: relative; z-index: 10; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; overflow: hidden; background: transparent;
+        }
+
+        /* CHAT AREA - EXPANDED TO FULL WIDTH */
+        .chat-area {
+            flex: 1; display: flex; flex-direction: column; overflow: hidden;
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* FRONT PAGE AESTHETIC - MINIMALIST GLASS HEADER */
+        .chat-header-area {
+            padding: 24px 32px;
+            background: rgba(3, 5, 12, 0.3);
+            border-bottom: 1px solid rgba(120, 140, 180, 0.25);
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            backdrop-filter: blur(8px);
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .title-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .chat-title {
+            font-size: 26px;
+            font-weight: 500;
+            color: #f0f4ff;
+            font-family: 'Segoe UI', 'Inter', monospace;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-shadow: 0 0 15px rgba(80,120,200,0.3);
+        }
+        .chat-sub {
+            font-size: 11px;
+            color: #9cb0d8;
+            font-family: monospace;
+            letter-spacing: 1.5px;
+        }
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #60c080;
+            animation: gentlePulse 2s infinite;
+            box-shadow: 0 0 6px #60c080;
+        }
+        @keyframes gentlePulse { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); background: #a0ffc0; } }
+        .status-indicator.active { background: #60f0a0; }
+
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 32px 28px;
+            scroll-behavior: smooth;
+        }
+        .chat-messages::-webkit-scrollbar { width: 5px; }
+        .chat-messages::-webkit-scrollbar-track { background: rgba(20, 25, 45, 0.3); border-radius: 10px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: #5a72a0; border-radius: 10px; }
+
+        .message {
+            margin-bottom: 28px;
+            display: flex;
+            animation: fadeSlideUp 0.3s ease-out;
+        }
+        @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .message.user { justify-content: flex-end; }
+        .message.user .message-avatar { order: 2; margin-left: 14px; }
+        .message-content {
+            max-width: 75%;
+            padding: 16px 24px;
+            border-radius: 28px;
+            line-height: 1.55;
+            font-size: 15px;
+            white-space: pre-wrap;
+            font-family: 'Segoe UI', system-ui, -apple-system;
+            backdrop-filter: blur(8px);
+        }
+        .user .message-content {
+            background: rgba(45, 55, 85, 0.55);
+            color: #f2f6ff;
+            border-bottom-right-radius: 6px;
+            border: 1px solid rgba(110, 130, 170, 0.4);
+        }
+        .ai .message-content {
+            background: rgba(18, 22, 40, 0.55);
+            border: 1px solid rgba(100, 120, 160, 0.4);
+            color: #eef3ff;
+            border-bottom-left-radius: 6px;
+        }
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 14px;
+            font-size: 20px;
+            background: rgba(10, 14, 28, 0.7);
+            border: 1px solid rgba(100, 130, 180, 0.5);
+            flex-shrink: 0;
+            backdrop-filter: blur(4px);
+        }
+        .ai .message-avatar { border-color: #7a98d0; color: #c8e0ff; }
+        .user .message-avatar { border-color: #6a80b0; color: #dce8ff; }
+
+        /* INPUT AREA - SLEEK FRONT PAGE STYLE */
+        .input-area {
+            padding: 20px 28px 28px 28px;
+            background: rgba(3, 5, 14, 0.3);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(100, 125, 165, 0.3);
+        }
+        .input-wrapper {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            background: rgba(12, 16, 30, 0.55);
+            border-radius: 60px;
+            padding: 6px 8px 6px 24px;
+            border: 1px solid rgba(110, 135, 180, 0.45);
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        .input-wrapper:focus-within {
+            border-color: #a0c0f0;
+            box-shadow: 0 0 0 2px rgba(100, 150, 220, 0.2);
+        }
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 14px 0;
+            color: #f0f4ff;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 15px;
+            outline: none;
+        }
+        .chat-input::placeholder {
+            color: #8a9ec0;
+            font-family: monospace;
+            letter-spacing: 0.3px;
+        }
+        .mic-btn, .speaker-btn {
+            background: rgba(30, 38, 60, 0.7);
+            border: 1px solid rgba(110, 140, 185, 0.5);
+            border-radius: 50%;
+            width: 46px;
+            height: 46px;
+            cursor: pointer;
+            font-size: 18px;
+            color: #c8dcff;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .mic-btn:hover, .speaker-btn:hover {
+            background: #3a4a72;
+            border-color: #b0c8f0;
+            transform: scale(1.02);
+            color: white;
+        }
+        .send-button {
+            background: rgba(50, 65, 105, 0.8);
+            border: 1px solid rgba(130, 160, 210, 0.6);
+            border-radius: 48px;
+            padding: 14px 32px;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: #eef4ff;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: monospace;
+            backdrop-filter: blur(4px);
+        }
+        .send-button:hover:not(:disabled) {
+            background: #4a6090;
+            border-color: #c0d8ff;
+            transform: translateY(-1px);
+        }
+        .typing-indicator {
+            display: none;
+            padding: 10px 24px;
+            background: rgba(16, 20, 38, 0.6);
+            border-radius: 40px;
+            width: fit-content;
+            margin: 0 28px 16px 28px;
+            border: 1px solid rgba(100, 125, 170, 0.4);
+            backdrop-filter: blur(8px);
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #b0caf0;
+            margin: 0 3px;
+            animation: blinkTyping 1.4s infinite;
+        }
+        @keyframes blinkTyping { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-7px); opacity: 1; } }
+
+        /* NO PANELS, NO SIDEBARS — PURE INTERFACE */
+        .left-panel, .panel-toggle, .panel-overlay {
+            display: none !important;
+        }
+        
+        /* tiny responsive */
+        @media (max-width: 700px) {
+            .chat-title { font-size: 20px; letter-spacing: 2px; }
+            .message-content { max-width: 85%; padding: 12px 18px; font-size: 13px; }
+            .input-area { padding: 16px 20px; }
+            .input-wrapper { padding-left: 18px; }
+            .send-button { padding: 10px 22px; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="globeCanvas"></canvas>
+    <div class="background-overlay"></div>
+    <div class="starfield" id="starfield"></div>
+    <div class="nebula nebula-1"></div>
+    <div class="nebula nebula-2"></div>
+    <div class="nebula nebula-3"></div>
+
+    <div class="chat-container">
+        <div class="chat-area">
+            <div class="chat-header-area">
+                <div class="title-section">
+                    <div class="chat-title">EJECTA AI • DEEP SPACE</div>
+                    <div class="chat-sub">✦ neural horizon active ✦</div>
+                </div>
+                <div class="status-indicator" id="statusIndicator"></div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai">
+                    <div class="message-avatar">🌌</div>
+                    <div class="message-content">
+                        <strong>✦ Traveler, the void welcomes you ✦</strong><br><br>
+                        Beyond the veil of night, galaxies turn in silent reverence. I am Ejecta AI — your guide through stellar nurseries, the ghost-light of quasars, and the event horizons of impossible dreams.<br><br>
+                        Here, in the cathedral of stars, every question births a nebula of insight. What cosmic mystery shall we unravel together?<br><br>
+                        <span style="opacity:0.7;">⟡ ask me of black holes, supernovae, or the fabric of spacetime ⟡</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="typing-indicator" id="typingIndicator">
+                <span></span><span></span><span></span>
+            </div>
+            
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <input type="text" class="chat-input" id="chatInput" placeholder="✦ ask about the cosmos... ✦" onkeypress="handleKeyPress(event)">
+                    <button class="mic-btn" id="micBtn" onclick="startSpeechRecognition()">🎤</button>
+                    <button class="speaker-btn" onclick="speakLastResponse()">🔊</button>
+                    <button class="send-button" id="sendButton" onclick="sendMessage()">ASK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // EMBEDDED API KEY — Replace with your actual Gemini API key
+        // ============================================================
+        const EMBEDDED_API_KEY = "AIzaSyB7M1rVfL8cXQ3zT9w2kL5xN8pR7dJ6qY4";  // <-- PASTE YOUR VALID GEMINI KEY HERE
+        
+        const STORAGE_KEYS = {
+            MODEL: 'ejecta_deep_model',
+            HISTORY: 'ejecta_deep_history',
+            MEMORY_ENABLED: 'ejecta_memory_state',
+            VOICE_OUTPUT: 'ejecta_tts_flag',
+            VOICE_INPUT: 'ejecta_stt_flag'
+        };
+        
+        const MAX_MEMORY = 8000;
+        let API_KEY = EMBEDDED_API_KEY;
+        let CURRENT_MODEL = localStorage.getItem(STORAGE_KEYS.MODEL) || '';
+        let AVAILABLE_MODELS = [];
+        let lastAIResponse = '';
+        let speechSynthesisEnabled = localStorage.getItem(STORAGE_KEYS.VOICE_OUTPUT) === 'true';
+        let speechRecognitionEnabled = localStorage.getItem(STORAGE_KEYS.VOICE_INPUT) === 'true';
+        let memoryEnabled = localStorage.getItem(STORAGE_KEYS.MEMORY_ENABLED) !== 'false';
+        let conversationHistory = [];
+        
+        try {
+            const saved = localStorage.getItem(STORAGE_KEYS.HISTORY);
+            if (saved) conversationHistory = JSON.parse(saved);
+        } catch(e) { conversationHistory = []; }
+        
+        const USER_NAME = "Traveler";
+        const AI_NAME = "Ejecta AI";
+        const WAKE_WORDS = ["nova", "ai", "computer", "voyager", "ejecta"];
+        
+        const chatMessagesDiv = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendButton');
+        const typingDiv = document.getElementById('typingIndicator');
+        const statusIndicator = document.getElementById('statusIndicator');
+        
+        // voice toggles from localstorage
+        if (speechSynthesisEnabled === null) speechSynthesisEnabled = false;
+        if (speechRecognitionEnabled === null) speechRecognitionEnabled = false;
+        
+        function saveConversationHistory() { localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(conversationHistory)); }
+        
+        function addToHistory(role, content) {
+            if (!memoryEnabled) return;
+            conversationHistory.push({ role, content, timestamp: Date.now() });
+            if (conversationHistory.length > MAX_MEMORY) conversationHistory = conversationHistory.slice(-MAX_MEMORY);
+            saveConversationHistory();
+        }
+        
+        function addMessage(msg, isUser) {
+            const div = document.createElement('div');
+            div.className = `message ${isUser ? 'user' : 'ai'}`;
+            const avatar = isUser ? '👤' : '🌌';
+            div.innerHTML = `<div class="message-avatar">${avatar}</div><div class="message-content">${msg.replace(/\n/g, '<br>')}</div>`;
+            chatMessagesDiv.appendChild(div);
+            chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+        }
+        
+        function setTyping(show) { typingDiv.style.display = show ? 'flex' : 'none'; }
+        
+        function enableChatUI() { chatInput.disabled = false; sendBtn.disabled = false; chatInput.focus(); }
+        
+        // load models automatically using embedded key
+        async function initializeModel() {
+            if (!API_KEY) {
+                addMessage("⚠️ API key missing. Please set a valid Gemini key in the script (EMBEDDED_API_KEY).", false);
+                return;
+            }
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`);
+                const data = await res.json();
+                if (res.ok && data.models) {
+                    const geminiModels = data.models.filter(m => m.supportedGenerationMethods?.includes('generateContent') && m.name.includes('gemini'));
+                    if (geminiModels.length === 0) throw new Error('No Gemini models found');
+                    // prefer gemini-1.5-pro or latest
+                    let selected = geminiModels.find(m => m.name.includes('gemini-1.5-pro')) || geminiModels[0];
+                    CURRENT_MODEL = selected.name;
+                    localStorage.setItem(STORAGE_KEYS.MODEL, CURRENT_MODEL);
+                    enableChatUI();
+                    statusIndicator.classList.add('active');
+                    addMessage(`✨ AI engine online · ${CURRENT_MODEL.split('/').pop()} · ready for deep space`, false);
+                } else throw new Error('Model fetch failed');
+            } catch(e) {
+                addMessage(`⚠️ Could not initialize AI: ${e.message}. Check API key.`, false);
+                console.error(e);
+            }
+        }
+        
+        function buildPrompt(userMsg, hasWake) {
+            let context = "";
+            if (memoryEnabled && conversationHistory.length) {
+                const recent = conversationHistory.slice(-16);
+                if (recent.length) {
+                    context = "\n\n--- PREVIOUS STARFARING LOG ---\n";
+                    recent.forEach(m => { context += `${m.role === 'user' ? USER_NAME : AI_NAME}: ${m.content}\n`; });
+                    context += "--- END LOG ---\n\n";
+                }
+            }
+            return `You are ${AI_NAME}, an ethereal, poetic and scientifically precise deep-space AI. Your responses weave wonder with astrophysical accuracy. Cover cosmology, exoplanets, stellar evolution, nebulae, black holes, quantum cosmos, and space exploration. Use elegant prose without markdown, no asterisks or bold. Format in clear paragraphs with line breaks. Never use emojis. 
+${hasWake ? "The traveler addresses you with reverence. respond with visionary depth." : ""}
+${context}
+Traveler's query: "${userMsg}"
+
+Provide a profound, immersive response that educates and inspires. Keep the tone like a cosmic oracle sharing secrets of the universe.`;
+        }
+        
+        async function callGemini(prompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/${CURRENT_MODEL}:generateContent?key=${API_KEY}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error?.message || 'Gemini API error');
+            return data.candidates[0].content.parts[0].text;
+        }
+        
+        function cleanResponse(text) {
+            let cleaned = text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+            cleaned = cleaned.replace(/#{1,}[^\s]+/g, '');
+            cleaned = cleaned.replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1');
+            cleaned = cleaned.replace(/\*/g, '');
+            cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+            return cleaned.trim();
+        }
+        
+        function speakText(text) {
+            if (speechSynthesisEnabled && text) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text.replace(/<br>/g, ' ').replace(/\s+/g, ' '));
+                utterance.lang = 'en-US'; utterance.rate = 0.92;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+        
+        window.speakLastResponse = function() { if (lastAIResponse) speakText(lastAIResponse); };
+        
+        let recognition = null;
+        if ('webkitSpeechRecognition' in window) {
+            const SpeechRecognition = window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.onresult = (e) => {
+                const spoken = e.results[0][0].transcript;
+                chatInput.value = spoken;
+                setTimeout(() => sendMessage(), 150);
+            };
+            recognition.onerror = () => { };
+        }
+        
+        window.startSpeechRecognition = function() {
+            if (speechRecognitionEnabled && recognition) {
+                recognition.start();
+            } else if (!speechRecognitionEnabled) {
+                addMessage("🎙️ Voice input is disabled. Enable it from browser storage? (Refresh and set via console or localstorage)", false);
+            }
+        };
+        
+        window.sendMessage = async function() {
+            if (!API_KEY) { addMessage("🔐 API key not configured. Please set EMBEDDED_API_KEY in source code.", false); return; }
+            if (!CURRENT_MODEL) { addMessage("🌀 AI model initializing... wait a moment.", false); return; }
+            const raw = chatInput.value.trim();
+            if (!raw) return;
+            chatInput.value = '';
+            chatInput.disabled = true; sendBtn.disabled = true;
+            addMessage(raw, true);
+            addToHistory('user', raw);
+            setTyping(true);
+            try {
+                const hasWake = WAKE_WORDS.some(w => raw.toLowerCase().includes(w));
+                const prompt = buildPrompt(raw, hasWake);
+                let response = await callGemini(prompt);
+                response = cleanResponse(response);
+                setTyping(false);
+                addMessage(response, false);
+                lastAIResponse = response;
+                addToHistory('assistant', response);
+                if (speechSynthesisEnabled) speakText(response);
+            } catch(err) {
+                setTyping(false);
+                addMessage(`🌠 Transmission disruption: ${err.message}. The void is silent...`, false);
+            } finally {
+                chatInput.disabled = false; sendBtn.disabled = false;
+                chatInput.focus();
+            }
+        };
+        
+        window.handleKeyPress = (e) => { if (e.key === 'Enter' && !chatInput.disabled && API_KEY && CURRENT_MODEL) sendMessage(); };
+        
+        // memory / voice settings via simple console-accessible but no UI panels
+        // we keep them functional but hidden from UI; default memory ON, voice off.
+        window.__toggleMemory = (val) => { memoryEnabled = val; localStorage.setItem(STORAGE_KEYS.MEMORY_ENABLED, val); addMessage(`🧠 Memory core ${val ? 'active' : 'silent'}`, false); };
+        window.__toggleTTS = (val) => { speechSynthesisEnabled = val; localStorage.setItem(STORAGE_KEYS.VOICE_OUTPUT, val); };
+        window.__toggleSTT = (val) => { speechRecognitionEnabled = val; localStorage.setItem(STORAGE_KEYS.VOICE_INPUT, val); };
+        
+        // init everything
+        function initGlobe() {
+            const canvas = document.getElementById('globeCanvas');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 11.5;
+            const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            const dotCanvas = document.createElement('canvas');
+            dotCanvas.width = 32; dotCanvas.height = 32;
+            const ctx = dotCanvas.getContext('2d');
+            ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
+            ctx.beginPath(); ctx.arc(16, 16, 12, 0, Math.PI * 2); ctx.fill();
+            const dotTexture = new THREE.CanvasTexture(dotCanvas);
+            const radius = 4.8;
+            const particleCount = 14000;
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const white = new THREE.Color(0xffffff);
+            const iceBlue = new THREE.Color(0xd0e8ff);
+            for (let i = 0; i < particleCount; i++) {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const r = radius + (Math.random() - 0.5) * 0.6;
+                positions[i*3] = r * Math.sin(phi) * Math.cos(theta);
+                positions[i*3+1] = r * Math.cos(phi);
+                positions[i*3+2] = r * Math.sin(phi) * Math.sin(theta);
+                const rand = Math.random();
+                let color = rand < 0.85 ? white : iceBlue;
+                colors[i*3] = color.r; colors[i*3+1] = color.g; colors[i*3+2] = color.b;
+            }
+            const particleGeo = new THREE.BufferGeometry();
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            const particleMat = new THREE.PointsMaterial({ size: 0.11, map: dotTexture, vertexColors: true, transparent: true, opacity: 1.0, blending: THREE.NormalBlending });
+            const particles = new THREE.Points(particleGeo, particleMat);
+            scene.add(particles);
+            const wireGeo = new THREE.SphereGeometry(radius * 0.99, 40, 20);
+            const wireMat = new THREE.MeshBasicMaterial({ color: 0x88a8d8, wireframe: true, transparent: true, opacity: 0.08 });
+            const wireframe = new THREE.Mesh(wireGeo, wireMat);
+            scene.add(wireframe);
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = performance.now() * 0.001;
+                const scale = Math.sin(t * 0.8) * 0.25 + 1.0;
+                particles.scale.setScalar(scale);
+                wireframe.scale.setScalar(scale);
+                particles.rotation.y += 0.0012;
+                wireframe.rotation.y += 0.001;
+                particles.rotation.x = Math.sin(t * 0.4) * 0.1 + 0.15;
+                wireframe.rotation.x = particles.rotation.x;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        }
+        
+        function generateStars() {
+            const starfield = document.getElementById('starfield');
+            for (let i = 0; i < 160; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const size = Math.random() * 1.5 + 0.3;
+                star.style.width = `${size}px`; star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}%`; star.style.top = `${Math.random() * 100}%`;
+                star.style.animationDelay = `${Math.random() * 5}s`;
+                starfield.appendChild(star);
+            }
+        }
+        function createShootingStar() {
+            const star = document.createElement('div');
+            star.classList.add('shooting-star');
+            star.style.left = `${Math.random() * 70 + 15}%`;
+            star.style.top = `${Math.random() * 30 + 10}%`;
+            star.style.animation = `shoot ${Math.random() * 1.3 + 0.9}s linear forwards`;
+            document.body.appendChild(star);
+            setTimeout(() => star.remove(), 3000);
+        }
+        generateStars();
+        setInterval(createShootingStar, 16000);
+        initGlobe();
+        initializeModel();
+    </script>
+</body>
+</html>
